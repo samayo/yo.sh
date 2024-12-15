@@ -8,7 +8,6 @@ IFS=$'\n\t'
 
 # Define variables
 PHP_VERSION="8.2"  # Updated to latest stable PHP version
-ROOT_PASS=$(openssl rand -base64 16)  # Increased password length
 NGINX_USER="www-data"
 DEBIAN_FRONTEND=noninteractive  # Prevent interactive prompts
 
@@ -48,14 +47,12 @@ main() {
     install_packages "MariaDB" "mariadb-server"
     systemctl enable mariadb
     systemctl start mariadb
-    
-    # Secure MariaDB installation
-    log_msg "Securing MariaDB installation..."
-    mysql -e "UPDATE mysql.user SET Password=PASSWORD('$ROOT_PASS') WHERE User='root';"
-    mysql -e "DELETE FROM mysql.user WHERE User='';"
-    mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-    mysql -e "DROP DATABASE IF EXISTS test;"
-    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+
+    # Configure MariaDB root to use unix socket authentication
+    log_msg "Configuring MariaDB root authentication..."
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket;"
+    mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
+    mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
     mysql -e "FLUSH PRIVILEGES;"
     
     # 3. Install PHP-FPM and common extensions
@@ -131,7 +128,6 @@ EOL
     # Output completion message
     log_msg "Installation complete!"
     echo "-----------------------------------"
-    echo "MariaDB root password: $ROOT_PASS"
     echo "PHP Version: $PHP_VERSION"
     echo "Test PHP at: http://your-ip/info.php"
     echo "Remember to delete info.php after testing!"
