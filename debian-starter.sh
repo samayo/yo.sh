@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # This script assumes Debian-based system and requires user-defined variables
 # Replace the following before running:
 #   - YOUR_USERNAME
@@ -21,7 +20,18 @@ apt full-upgrade -y
 apt autoremove -y
 
 # 2. Install Essential Packages
-apt install -y ufw fail2ban unattended-upgrades ntp htop curl wget git nano software-properties-common logwatch rkhunter
+apt install -y ufw \
+    fail2ban \
+    unattended-upgrades \
+    systemd-timesyncd \
+    htop \
+    curl \
+    wget \
+    git \
+    nano \
+    software-properties-common \
+    logwatch \
+    rkhunter
 
 # 3. Create New User with Sudo Privileges
 # Make sure this user does not exist. If it does, skip this step.
@@ -109,9 +119,15 @@ EOL
 echo 'vm.swappiness=10' | tee -a /etc/sysctl.conf
 sysctl -p
 
-# 9. Setup NTP for time synchronization
-systemctl enable ntp
-systemctl start ntp
+# 9. Setup Time Synchronization
+# Stop and disable NTP if installed
+systemctl stop ntp || true
+systemctl disable ntp || true
+
+# Enable and start systemd-timesyncd
+systemctl enable systemd-timesyncd
+systemctl start systemd-timesyncd
+timedatectl set-ntp true
 
 # 10. Configure and Update RKHunter
 rkhunter --update
@@ -132,11 +148,30 @@ echo "net.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf
 sysctl -p
 
 # 13. Verify Services (non-blocking status checks)
+echo "Checking service statuses..."
 systemctl status ufw || true
 systemctl status fail2ban || true
 systemctl status unattended-upgrades || true
-systemctl status ntp || true
+systemctl status systemd-timesyncd || true
 
-echo "Initial server setup complete."
-echo "Please verify you can log in as $YOUR_USERNAME via SSH on port $SSH_PORT before ending the current session."
-echo "Rebooting is recommended: 'reboot'"
+# 14. Final Security Checks
+echo "Running final security checks..."
+if ! grep -q "^AllowUsers $YOUR_USERNAME" /etc/ssh/sshd_config; then
+    echo "WARNING: SSH AllowUsers configuration may not be correct!"
+fi
+
+if ! grep -q "^Port $SSH_PORT" /etc/ssh/sshd_config; then
+    echo "WARNING: SSH port configuration may not be correct!"
+fi
+
+# 15. Final Instructions
+echo "================================================================"
+echo "Initial server setup complete. IMPORTANT NEXT STEPS:"
+echo "1. BEFORE LOGGING OUT: Open a new terminal and verify you can log in as"
+echo "   $YOUR_USERNAME via SSH on port $SSH_PORT"
+echo "2. Command to connect: ssh -p $SSH_PORT $YOUR_USERNAME@your-server-ip"
+echo "3. Test sudo access with: sudo whoami"
+echo "4. Verify time synchronization: timedatectl status"
+echo "5. Check firewall status: sudo ufw status"
+echo "6. A system reboot is recommended after verifying SSH access"
+echo "================================================================"
