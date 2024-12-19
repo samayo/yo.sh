@@ -10,9 +10,9 @@
 
 set -euo pipefail
 
-YOUR_USERNAME="your_username"
-YOUR_EMAIL="your_email@example.com"
-SSH_PORT="2222"
+YOUR_USERNAME="${YOUR_USERNAME:-default_user}" 
+YOUR_EMAIL="${YOUR_EMAIL:-default@example.com}"
+SSH_PORT="${SSH_PORT:-22}" 
 
 # 1. Update and Upgrade System
 apt update
@@ -174,4 +174,4 @@ echo "3. Test sudo access with: sudo whoami"
 echo "4. Verify time synchronization: timedatectl status"
 echo "5. Check firewall status: sudo ufw status"
 echo "6. A system reboot is recommended after verifying SSH access"
-echo "================================================================"
+echo "================================================================"root@srv670393:/# 
