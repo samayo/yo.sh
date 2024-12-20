@@ -60,14 +60,19 @@ main() {
 
     log_msg "Securing MariaDB..."
     MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
-    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
-    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
-    sudo mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
-    sudo mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-    sudo mysql -e "DROP DATABASE IF EXISTS test;"
-    sudo mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
-    sudo mysql -e "FLUSH PRIVILEGES;"
-    
+
+    # Use mysqladmin to set initial root password
+    mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"
+
+    # Now use mysql with the password to perform remaining security operations
+    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+    DELETE FROM mysql.user WHERE User='';
+    DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+    DROP DATABASE IF EXISTS test;
+    DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+    FLUSH PRIVILEGES;
+    EOF
+
     log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
     echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
     chmod 600 /root/mysql_root_password.txt
