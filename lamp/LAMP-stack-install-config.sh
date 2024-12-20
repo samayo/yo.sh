@@ -60,13 +60,13 @@ main() {
 
     log_msg "Securing MariaDB..."
     MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
-    mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
-    mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-    mysql -e "DROP DATABASE IF EXISTS test;"
-    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
-    mysql -e "FLUSH PRIVILEGES;"
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
+    sudo mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
+    sudo mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+    sudo mysql -e "DROP DATABASE IF EXISTS test;"
+    sudo mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
     
     log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
     echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
