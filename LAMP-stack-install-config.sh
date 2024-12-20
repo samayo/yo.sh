@@ -11,19 +11,19 @@ NGINX_USER="www-data"
 DEBIAN_FRONTEND=noninteractive
 
 log_msg() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "This script must be run as root" >&2
-        exit 1
-    fi
+    if [[ $EUID -ne 0 ]]; then
+        echo "This script must be run as root" >&2
+        exit 1
+    fi
 }
 
 install_packages() {
-    log_msg "Installing $1..."
-    apt-get install -y -qq $2
+    log_msg "Installing $1..."
+    apt-get install -y -qq $2
 }
 
 add_php_repository() {
@@ -36,66 +36,72 @@ add_php_repository() {
 }
 
 main() {
-    check_root
+    check_root
 
-    log_msg "Updating system packages..."
-    apt-get update -qq
-    apt-get upgrade -y -qq
+    log_msg "Updating system packages..."
+    apt-get update -qq
+    apt-get upgrade -y -qq
 
-    install_packages "Nginx" "nginx"
-    systemctl enable nginx
-    systemctl start nginx
+    install_packages "Nginx" "nginx"
+    systemctl enable nginx
+    systemctl start nginx
     if ! systemctl is-active --quiet nginx; then
         log_msg "ERROR: Nginx failed to start. Check logs for details."
         exit 1
     fi
 
-    install_packages "MariaDB" "mariadb-server"
-    systemctl enable mariadb
-    systemctl start mariadb
+    install_packages "MariaDB" "mariadb-server"
+    systemctl enable mariadb
+    systemctl start mariadb
     if ! systemctl is-active --quiet mariadb; then
         log_msg "ERROR: MariaDB failed to start. Check logs for details."
         exit 1
     fi
 
-    log_msg "Securing MariaDB..."
-    MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
+    log_msg "Securing MariaDB..."
+    MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
     mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';"
-    mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
-    mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-    mysql -e "DROP DATABASE IF EXISTS test;"
-    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
-    mysql -e "FLUSH PRIVILEGES;"
-    log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
-    echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
-    chmod 600 /root/mysql_root_password.txt
+    mysql -e "DELETE FROM mysql.global_priv WHERE User='';"
+    mysql -e "DELETE FROM mysql.global_priv WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+    mysql -e "DROP DATABASE IF EXISTS test;"
+    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+    mysql -e "FLUSH PRIVILEGES;"
+    
+    log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
+    echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
+    chmod 600 /root/mysql_root_password.txt
 
     # Add Ondrej Sury's PPA for PHP 8.2
     add_php_repository
 
-    log_msg "Installing PHP and extensions..."
-    install_packages "PHP and extensions" "php${PHP_VERSION}-fpm php${PHP_VERSION}-mysql php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-intl"
-    systemctl enable php${PHP_VERSION}-fpm
-    systemctl start php${PHP_VERSION}-fpm
+    log_msg "Installing PHP and extensions..."
+    install_packages "PHP and extensions" \
+        "php${PHP_VERSION}-fpm php${PHP_VERSION}-mysql php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-intl"
+    
+    systemctl enable php${PHP_VERSION}-fpm
+    systemctl start php${PHP_VERSION}-fpm
     if ! systemctl is-active --quiet php${PHP_VERSION}-fpm; then
         log_msg "ERROR: PHP-FPM failed to start. Check logs for details."
         exit 1
     fi
 
-    log_msg "Configuring PHP-FPM..."
-    sed -i "s/upload_max_filesize = .*/upload_max_filesize = 10M/" /etc/php/${PHP_VERSION}/fpm/php.ini
-    sed -i "s/post_max_size = .*/post_max_size = 10M/" /etc/php/${PHP_VERSION}/fpm/php.ini
-    sed -i "s/expose_php = .*/expose_php = Off/" /etc/php/${PHP_VERSION}/fpm/php.ini
-    sed -i "s/display_errors = .*/display_errors = Off/" /etc/php/${PHP_VERSION}/fpm/php.ini
-    sed -i "s/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/" /etc/php/${PHP_VERSION}/fpm/php.ini
+    log_msg "Configuring PHP-FPM..."
+    
+    # Update PHP configuration settings using sed 
+    sed -i "s/upload_max_filesize = .*/upload_max_filesize = 10M/" /etc/php/${PHP_VERSION}/fpm/php.ini
+    sed -i "s/post_max_size = .*/post_max_size = 10M/" /etc/php/${PHP_VERSION}/fpm/php.ini
+    sed -i "s/expose_php = .*/expose_php = Off/" /etc/php/${PHP_VERSION}/fpm/php.ini
+    sed -i "s/display_errors = .*/display_errors = Off/" /etc/php/${PHP_VERSION}/fpm/php.ini
+    sed -i "s/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/" /etc/php/${PHP_VERSION}/fpm/php.ini
     sed -i "s/;max_execution_time = .*/max_execution_time = 300/" /etc/php/${PHP_VERSION}/fpm/php.ini
     sed -i "s/;max_input_time = .*/max_input_time = 60/" /etc/php/${PHP_VERSION}/fpm/php.ini
     sed -i "s/;memory_limit = .*/memory_limit = 256M/" /etc/php/${PHP_VERSION}/fpm/php.ini
     sed -i "s/;date.timezone =.*/date.timezone = UTC/" /etc/php/${PHP_VERSION}/fpm/php.ini
 
-    log_msg "Configuring Nginx..."
-    cat > /etc/nginx/sites-available/default <<EOL
+    log_msg "Configuring Nginx..."
+    
+cat > /etc/nginx/sites-available/default <<EOL
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -138,13 +144,12 @@ server {
 }
 EOL
 
-    nginx -t
-    if [[ $? -eq 0 ]]; then
-        systemctl restart nginx
-    else
-        log_msg "Error: Nginx configuration test failed. Please check the configuration."
-        exit 1
-    fi
+    nginx -t || { 
+        log_msg "Error: Nginx configuration test failed. Please check the configuration."; 
+        exit 1; 
+      }
+
+    systemctl restart nginx
 
     echo "<?php phpinfo(); ?>" > /var/www/html/info.php
     chown -R ${NGINX_USER}:${NGINX_USER} /var/www/html
@@ -154,11 +159,13 @@ EOL
     echo "PHP Version: $PHP_VERSION"
     echo "Test PHP at: http://your-server-ip/info.php"
     echo "Remember to delete info.php after testing!"
-    if [ -f /root/mysql_root_password.txt ]; then
-        echo "MariaDB root password has been saved to /root/mysql_root_password.txt"
-    fi
-    echo "IMPORTANT: If your server is using DHCP, your IP address may change. Consider setting a static IP."
-    echo "-----------------------------------"
+    
+	if [ -f /root/mysql_root_password.txt ]; then
+	    echo "MariaDB root password has been saved to /root/mysql_root_password.txt"
+	fi
+	
+	echo "IMPORTANT: If your server is using DHCP, your IP address may change. Consider setting a static IP."
+	echo "-----------------------------------"
 }
 
-main
+main "$@"
