@@ -1,5 +1,5 @@
 #!/bin/bash
-# Undo script for LAMP stack installation
+# This script completely removes Nginx, PHP, and MariaDB from the system.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -8,51 +8,43 @@ log_msg() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
-remove_packages() {
-    if dpkg -l | grep -q "^ii  $2"; then
-        log_msg "Removing $1..."
-        apt-get purge -y $2
-    else
-        log_msg "$1 is not installed, skipping removal."
-    fi
-}
-
 remove_nginx() {
-    remove_packages "Nginx" "nginx"
-    log_msg "Removing Nginx configuration files..."
-    rm -rf /etc/nginx
-}
-
-remove_mariadb() {
-    remove_packages "MariaDB" "mariadb-server"
-    remove_packages "MariaDB client" "mariadb-client"
-    
-    log_msg "Removing MariaDB data directory..."
-    rm -rf /var/lib/mysql
-    log_msg "Removing MariaDB configuration files..."
-    rm -rf /etc/mysql
+    log_msg "Stopping Nginx service..."
+    systemctl stop nginx || true
+    log_msg "Removing Nginx packages..."
+    apt-get purge -y nginx nginx-common nginx-core
+    log_msg "Removing Nginx directories..."
+    rm -rf /etc/nginx /var/log/nginx /var/cache/nginx /usr/share/nginx
 }
 
 remove_php() {
-    remove_packages "PHP" "php*"
+    log_msg "Removing PHP packages..."
+    apt-get purge -y php* 
+    log_msg "Removing PHP directories..."
+    rm -rf /etc/php /var/lib/php /var/log/php
+}
+
+remove_mariadb() {
+    log_msg "Stopping MariaDB service..."
+    systemctl stop mariadb || true
+    log_msg "Removing MariaDB packages..."
+    apt-get purge -y mariadb-server mariadb-client
+    log_msg "Removing MariaDB data and configuration..."
+    rm -rf /etc/mysql /var/lib/mysql /var/log/mysql /var/lib/mysql-files
 }
 
 main() {
-    log_msg "Starting undo process..."
+    log_msg "Starting complete removal..."
 
-    # Remove Nginx
     remove_nginx
-
-    # Remove MariaDB
+    remove_php
     remove_mariadb
 
-    # Remove PHP
-    remove_php
-
-    log_msg "Cleaning up any remaining dependencies..."
+    log_msg "Cleaning up residual dependencies..."
     apt-get autoremove -y
+    apt-get autoclean -y
 
-    log_msg "Undo process complete!"
+    log_msg "All traces removed!"
 }
 
 main "$@"
