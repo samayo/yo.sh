@@ -42,5 +42,5 @@ done
 # Print a confirmation message
 echo "Environment variables set successfully:"
 for var in "${variables[@]}"; do
-  echo "$var=${values[$var]}"
+  echo "$var=${values[$var]}" # Corrected line
 done
