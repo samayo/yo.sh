@@ -30,7 +30,6 @@ apt install -y ufw \
     git \
     nano \
     software-properties-common \
-    logwatch \
     rkhunter
 
 # 3. Create New User with Sudo Privileges
@@ -121,8 +120,11 @@ sysctl -p
 
 # 9. Setup Time Synchronization
 # Stop and disable NTP if installed
-systemctl stop ntp || true
-systemctl disable ntp || true
+# Before running these lines, check if ntp is installed
+if systemctl list-unit-files | grep -q '^ntp.service'; then
+    systemctl stop ntp
+    systemctl disable ntp
+fi
 
 # Enable and start systemd-timesyncd
 systemctl enable systemd-timesyncd
@@ -133,28 +135,33 @@ timedatectl set-ntp true
 rkhunter --update
 rkhunter --propupd
 
-# 11. Configure Logwatch
+# 11. Install Logwatch
+apt install logwatch
+# Fix logwatch WEB_CMD issue by commenting out the problematic line
+sed -i 's|^WebCmd = /bin/false|#WebCmd = /bin/false|' /usr/share/logwatch/default.conf/logwatch.conf
+
+# 12. Configure Logwatch
 cat > /etc/cron.daily/00logwatch << EOL
 #!/bin/bash
 /usr/sbin/logwatch --output mail --mailto $YOUR_EMAIL --detail high
 EOL
 chmod +x /etc/cron.daily/00logwatch
 
-# 12. Optional: Disable IPv6 if not required
+# 13. Optional: Disable IPv6 if not required
 # Note: Only do this if you don't need IPv6. Otherwise, comment out these lines.
 echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf
 sysctl -p
 
-# 13. Verify Services (non-blocking status checks)
+# 14. Verify Services (non-blocking status checks)
 echo "Checking service statuses..."
 systemctl status ufw || true
 systemctl status fail2ban || true
 systemctl status unattended-upgrades || true
 systemctl status systemd-timesyncd || true
 
-# 14. Final Security Checks
+# 15. Final Security Checks
 echo "Running final security checks..."
 if ! grep -q "^AllowUsers $YOUR_USERNAME" /etc/ssh/sshd_config; then
     echo "WARNING: SSH AllowUsers configuration may not be correct!"
@@ -164,7 +171,7 @@ if ! grep -q "^Port $SSH_PORT" /etc/ssh/sshd_config; then
     echo "WARNING: SSH port configuration may not be correct!"
 fi
 
-# 15. Final Instructions
+# 16. Final Instructions
 echo "================================================================"
 echo "Initial server setup complete. IMPORTANT NEXT STEPS:"
 echo "1. BEFORE LOGGING OUT: Open a new terminal and verify you can log in as"
