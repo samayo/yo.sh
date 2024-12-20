@@ -31,6 +31,7 @@ remove_mariadb() {
     apt-get purge -y mariadb-server mariadb-client
     log_msg "Removing MariaDB data and configuration..."
     rm -rf /etc/mysql /var/lib/mysql /var/log/mysql /var/lib/mysql-files
+    apt-get remove --purge mariadb-server mariadb-client mariadb-common
 }
 
 main() {
