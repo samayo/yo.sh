@@ -9,8 +9,12 @@ log_msg() {
 }
 
 remove_packages() {
-    log_msg "Removing $1..."
-    apt-get purge -y $2
+    if dpkg -l | grep -q "^ii  $2"; then
+        log_msg "Removing $1..."
+        apt-get purge -y $2
+    else
+        log_msg "$1 is not installed, skipping removal."
+    fi
 }
 
 remove_nginx() {
@@ -20,7 +24,9 @@ remove_nginx() {
 }
 
 remove_mariadb() {
-    remove_packages "MariaDB" "mariadb-server mariadb-client"
+    remove_packages "MariaDB" "mariadb-server"
+    remove_packages "MariaDB client" "mariadb-client"
+    
     log_msg "Removing MariaDB data directory..."
     rm -rf /var/lib/mysql
     log_msg "Removing MariaDB configuration files..."
