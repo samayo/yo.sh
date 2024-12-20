@@ -58,24 +58,24 @@ main() {
         exit 1
     fi
 
-    log_msg "Securing MariaDB..."
-    MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
+  log_msg "Securing MariaDB..."
+MYSQL_ROOT_PASSWORD=$(openssl rand -base64 20)
 
-    # Use mysqladmin to set initial root password
-    mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"
+# Use mysqladmin to set initial root password
+mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"
 
-    # Now use mysql with the password to perform remaining security operations
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
-    DELETE FROM mysql.user WHERE User='';
-    DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
-    DROP DATABASE IF EXISTS test;
-    DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
-    FLUSH PRIVILEGES;
-    EOF
+# Now use mysql with the password to perform remaining security operations
+mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+FLUSH PRIVILEGES;
+EOF
 
-    log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
-    echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
-    chmod 600 /root/mysql_root_password.txt
+log_msg "MariaDB root password set to: ${MYSQL_ROOT_PASSWORD}"
+echo "MariaDB root password: ${MYSQL_ROOT_PASSWORD}" >> /root/mysql_root_password.txt
+chmod 600 /root/mysql_root_password.txt
 
     # Add Ondrej Sury's PPA for PHP 8.2
     add_php_repository
