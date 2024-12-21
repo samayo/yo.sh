@@ -29,9 +29,9 @@ install_packages() {
 add_php_repository() {
     log_msg "Adding Ondrej PHP repository..."
     apt-get update -qq
-    apt-get install -y -qq ca-certificates apt-transport-https software-properties-common lsb-release
+    apt-get install -y -qq ca-certificates apt-transport-https software-properties-common lsb-release curl
+    curl -sSL https://packages.sury.org/php/apt.gpg -o /etc/apt/trusted.gpg.d/sury-php.gpg
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/sury-php.list
-    wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add -
     apt-get update -qq
 }
 
@@ -81,9 +81,16 @@ chmod 600 /root/mysql_root_password.txt
     add_php_repository
 
     log_msg "Installing PHP and extensions..."
-    install_packages "PHP and extensions" \
-        "php${PHP_VERSION}-fpm php${PHP_VERSION}-mysql php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-intl"
-    
+    apt-get install -y -qq \
+        php${PHP_VERSION}-fpm \
+        php${PHP_VERSION}-mysql \
+        php${PHP_VERSION}-curl \
+        php${PHP_VERSION}-gd \
+        php${PHP_VERSION}-mbstring \
+        php${PHP_VERSION}-xml \
+        php${PHP_VERSION}-zip \
+        php${PHP_VERSION}-intl
+
     systemctl enable php${PHP_VERSION}-fpm
     systemctl start php${PHP_VERSION}-fpm
     if ! systemctl is-active --quiet php${PHP_VERSION}-fpm; then
